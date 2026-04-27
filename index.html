@@ -540,41 +540,31 @@ async function init() {
 
   VALIDATORS.avg.apy = clusterApy;
   if (myVal) {
-    console.log('Stakewiz validator data:', myVal);
+  console.log('Stakewiz validator data:', myVal);
 
-const baseApy = parseFloat(
-  myVal.true_apy ||
-  myVal.true_apy_estimate ||
-  myVal.trueapy ||
-  myVal.apy_estimate ||
-  myVal.estimated_apy ||
-  myVal.apy ||
-  0
-);
+  const baseApy = parseFloat(
+    myVal.true_apy ||
+    myVal.true_apy_estimate ||
+    myVal.trueapy ||
+    myVal.apy_estimate ||
+    myVal.estimated_apy ||
+    myVal.apy ||
+    0
+  );
 
-console.log('Stakewiz validator data:', myVal);
+  if (!isNaN(baseApy) && baseApy > 0) {
+    VALIDATORS.sunshine.apy = baseApy;
+  } else {
+    console.log('APY not found, fallback to cluster');
+    VALIDATORS.sunshine.apy = clusterApy;
+  }
 
-const baseApy = parseFloat(
-  myVal.true_apy ||
-  myVal.true_apy_estimate ||
-  myVal.apy_estimate ||
-  myVal.estimated_apy ||
-  myVal.apy ||
-  0
-);
-
-if (!isNaN(baseApy) && baseApy > 0) {
-  VALIDATORS.sunshine.apy = baseApy;
+  VALIDATORS.sunshine.mev = myVal.jito_commission_bps ? myVal.jito_commission_bps / 100 : 8;
+  VALIDATORS.sunshine.comm = myVal.commission || 0;
+  VALIDATORS.sunshine.uptime = myVal.uptime || 99.99;
 } else {
-  console.log('APY not found, fallback to cluster');
   VALIDATORS.sunshine.apy = clusterApy;
 }
-
-VALIDATORS.sunshine.mev = myVal.jito_commission_bps ? myVal.jito_commission_bps / 100 : 8;
-VALIDATORS.sunshine.comm = myVal.commission || 0;
-VALIDATORS.sunshine.uptime = myVal.uptime || 99.99;
-  }
-  onVal();
 }
 
 function onVal() {
