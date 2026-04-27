@@ -485,7 +485,7 @@
 </div>
 
 <script>
-const SUNSHINE_VOTE = '2P9ZYA4vBoBBr56hrEFTmrd5ctuz3r7wtvRYmbgk6jRL';
+const SUNSHINE_VOTE = 'FGtsnE1HB4bBi6g4xAt5mvWtuC3qBPWPBgWVrnRmUiVH';
 const VALIDATORS = {
   sunshine: { apy: null, mev: 8,    comm: 0, uptime: 99.99 },
   avg:      { apy: null, mev: 0,    comm: 0, uptime: 99.5  },
@@ -555,7 +555,7 @@ function onVal() {
   const key = document.getElementById('val-sel').value;
   const v = VALIDATORS[key];
   const apy = v.apy || 5.9;
-  currentApy = apy + (v.mev > 0 ? (v.mev / 100) * 0.5 : 0);
+  currentApy = apy;
   document.getElementById('p-apy').textContent = 'APY: ' + apy.toFixed(2) + '%';
   document.getElementById('p-mev').textContent = 'MEV: ' + (v.mev !== null && v.mev !== undefined ? v.mev + '%' : 'n/a');
   document.getElementById('p-comm').textContent = 'Комісія: ' + (v.comm !== null ? v.comm + '%' : 'n/a');
