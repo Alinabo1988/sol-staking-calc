@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sunshine SOL Staking Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --border2: #444c56;
+      --text: #e6edf3;
+      --text2: #8b949e;
+      --text3: #6e7681;
+      --green: #3fb950;
+      --green-bg: rgba(63,185,80,.1);
+      --purple: #9945FF;
+      --purple-dim: rgba(153,69,255,.15);
+      --gold: #d29922;
+      --radius: 10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 32px 20px 60px;
+    }
+
+    /* background glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(153,69,255,.18) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper { max-width: 820px; margin: 0 auto; position: relative; z-index: 1; }
+
+    /* header */
+    header { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+    .logo-circle {
+      width: 46px; height: 46px; border-radius: 50%;
+      background: linear-gradient(135deg, #f6d365, #fda085);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      box-shadow: 0 0 20px rgba(253,160,133,.3);
+    }
+    header h1 { font-size: 22px; font-weight: 600; letter-spacing: -.3px; }
+    header h1 span { color: var(--purple); }
+    .price-chip {
+      margin-left: auto;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text2);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+    .dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* grid */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width:600px){ .grid{grid-template-columns:1fr} }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 16px;
+    }
+
+    /* validator select */
+    .sel-wrap { position: relative; }
+    select {
+      width: 100%;
+      padding: 10px 36px 10px 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    select:focus { border-color: var(--purple); }
+    .sel-arrow {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none; color: var(--text3);
+    }
+
+    /* pills */
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      background: var(--bg3);
+    }
+    .pill.green { border-color: rgba(63,185,80,.3); color: var(--green); background: var(--green-bg); }
+    .pill.purple { border-color: rgba(153,69,255,.3); color: #b97fff; background: var(--purple-dim); }
+
+    /* months slider */
+    .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--purple);
+      height: 4px;
+      cursor: pointer;
+    }
+    .months-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      min-width: 24px;
+      text-align: right;
+    }
+
+    /* stake input */
+    .input-group {
+      display: flex;
+      align-items: center;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 6px;
+      transition: border-color .15s;
+    }
+    .input-group:focus-within { border-color: var(--purple); }
+    .input-prefix { padding: 0 10px; border-right: 1px solid var(--border); display: flex; align-items: center; }
+    .stake-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      padding: 10px 12px;
+    }
+    .adj-btn {
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--border);
+      color: var(--text2);
+      font-size: 18px;
+      width: 38px;
+      height: 42px;
+      cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .adj-btn:hover { background: var(--border); color: var(--text); }
+
+    /* price row */
+    .price-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .price-label { font-size: 12px; color: var(--text2); white-space: nowrap; }
+    .price-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      width: 100px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .price-input:focus { border-color: var(--purple); }
+
+    /* results */
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-row:last-of-type { border-bottom: none; }
+    .result-label { font-size: 13px; color: var(--text2); }
+    .result-val {
+      text-align: right;
+      font-family: 'DM Mono', monospace;
+    }
+    .result-sol { font-size: 14px; font-weight: 500; color: var(--text); }
+    .result-usd { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+    /* total box */
+    .total-box {
+      margin-top: 14px;
+      background: linear-gradient(135deg, rgba(153,69,255,.08), rgba(63,185,80,.06));
+      border: 1px solid rgba(153,69,255,.25);
+      border-radius: 9px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-label { font-size: 12px; color: var(--text2); margin-bottom: 2px; }
+    .total-sub { font-size: 10px; color: var(--text3); }
+    .total-sol { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: var(--green); }
+    .total-usd { font-size: 11px; color: var(--text3); text-align: right; margin-top: 2px; }
+
+    /* stake btn */
+    .stake-btn {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      background: linear-gradient(135deg, #512da8, #7b3ff0);
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 20px rgba(123,63,240,.3);
+    }
+    .stake-btn:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(123,63,240,.45); }
+    .stake-btn:active { transform: translateY(0); }
+    .stake-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .stake-btn.connected {
+      background: linear-gradient(135deg, #1a7a5e, #27a070);
+      box-shadow: 0 4px 20px rgba(39,160,112,.3);
+    }
+
+    .status-line {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      margin-top: 8px;
+      min-height: 16px;
+      font-family: 'DM Mono', monospace;
+    }
+    .status-line.ok { color: var(--green); }
+    .status-line.err { color: #f85149; }
+    .status-line a { color: inherit; }
+
+    /* modal */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .overlay.show { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 24px;
+      width: 320px;
+      max-width: 90vw;
+      transform: translateY(12px);
+      transition: transform .2s;
+    }
+    .overlay.show .modal { transform: translateY(0); }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .modal p { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+    .wallet-btn {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 12px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-bottom: 8px;
+      transition: border-color .12s, background .12s;
+      text-align: left;
+    }
+    .wallet-btn:hover { border-color: var(--border2); background: var(--border); }
+    .wallet-icon { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; object-fit: contain; }
+    .wallet-sub { font-size: 11px; color: var(--text3); font-weight: 400; margin-top: 1px; }
+    .cancel-btn {
+      width: 100%; padding: 9px;
+      background: transparent; border: none;
+      color: var(--text3); font-family: 'DM Sans', sans-serif;
+      font-size: 13px; cursor: pointer; margin-top: 6px;
+    }
+    .cancel-btn:hover { color: var(--text2); }
+
+    .spinner {
+      display: inline-block; width: 11px; height: 11px;
+      border: 1.5px solid var(--border2);
+      border-top-color: var(--text2);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle; margin-right: 4px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-circle">☀️</div>
+    <div>
+      <h1>Sunshine <span>SOL</span> Staking</h1>
+      <div style="font-size:12px;color:var(--text3);margin-top:1px">Калькулятор прибутку · Mainnet</div>
+    </div>
+    <div class="price-chip">
+      <span class="dot" id="price-dot"></span>
+      <span id="price-display"><span class="spinner"></span></span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- LEFT -->
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-title">Параметри стейкінгу</div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Валідатор</div>
+        <div class="sel-wrap">
+          <select id="val-sel" onchange="onVal()">
+            <option value="sunshine">☀️ Sunshine (моя нода)</option>
+            <option value="avg">📊 Середній по кластеру</option>
+            <option value="figment">Figment</option>
+            <option value="binance">Binance Staking</option>
+            <option value="jupiter">Jupiter</option>
+            <option value="everstake">Everstake</option>
+            <option value="helius">Helius</option>
+            <option value="forward">Forward Industries</option>
+          </select>
+          <svg class="sel-arrow" width="12" height="12" viewBox="0 0 12 12"><path fill="currentColor" d="M6 8L1 3h10z"/></svg>
+        </div>
+        <div class="pills" id="pills">
+          <span class="pill purple" id="p-apy">APY: —</span>
+          <span class="pill" id="p-mev">MEV: —</span>
+          <span class="pill" id="p-comm">Комісія: —</span>
+          <span class="pill green" id="p-up">Uptime: —</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Кількість місяців</div>
+        <div class="slider-row">
+          <input type="range" min="1" max="24" step="1" value="12" id="mslider" oninput="onMonths(this.value)">
+          <span class="months-num" id="mdisp">12</span>
+          <span style="font-size:11px;color:var(--text3)">міс</span>
+        </div>
+      </div>
+
+      <div style="margin-top:auto;padding-top:20px">
+        <button class="stake-btn" id="stake-btn" onclick="onStakeClick()">
+          <svg width="16" height="16" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="rgba(255,255,255,.2)"/><path d="M9 20.5h11.5l2.5-2H11L9 20.5zm0-7h11.5l2.5-2H11L9 13.5zm2.5-3.5h11.5L20.5 8H11L9 10z" fill="white"/></svg>
+          Stake на Sunshine
+        </button>
+        <div class="status-line" id="stake-status"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="card">
+      <div class="card-title">Розрахунок прибутку</div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:0">Сума стейку (SOL)</div>
+        <div class="input-group">
+          <div class="input-prefix">
+            <svg width="14" height="14" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#9945FF"/><path d="M9 20.5h11.5l2.5-2H11L9 20.5zm0-7h11.5l2.5-2H11L9 13.5zm2.5-3.5h11.5L20.5 8H11L9 10z" fill="white"/></svg>
+          </div>
+          <input class="stake-input" type="number" id="stake" value="100" min="0" step="1" oninput="recalc()">
+          <button class="adj-btn" onclick="adjStake(-10)">−</button>
+          <button class="adj-btn" onclick="adjStake(10)">+</button>
+        </div>
+        <div class="price-row">
+          <span class="price-label">Ціна SOL ($):</span>
+          <input class="price-input" type="number" id="price-inp" value="140" min="1" oninput="recalc()">
+          <span id="price-badge" style="font-size:10px;color:var(--text3)">офлайн</span>
+        </div>
+      </div>
+
+      <div class="result-row">
+        <span class="result-label">Щоденно</span>
+        <div class="result-val"><div class="result-sol" id="r-d">—</div><div class="result-usd" id="u-d"></div></div>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Щомісяця</span>
+        <div class="result-val"><div class="result-sol" id="r-m">—</div><div class="result-usd" id="u-m"></div></div>
+      </div>
+      <div class="result-row">
+        <span class="result-label" id="period-lbl">За 12 місяців</span>
+        <div class="result-val"><div class="result-sol" id="r-p">—</div><div class="result-usd" id="u-p"></div></div>
+      </div>
+
+      <div class="total-box">
+        <div>
+          <div class="total-label">Разом з ревардами</div>
+          <div class="total-sub">стейк + прибуток за період</div>
+        </div>
+        <div>
+          <div class="total-sol" id="t-sol">—</div>
+          <div class="total-usd" id="t-usd"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="modal" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <h2>Підключити гаманець</h2>
+    <p>Оберіть гаманець для стейкінгу на Sunshine validator</p>
+
+    <button class="wallet-btn" onclick="connectWallet('phantom')">
+      <img class="wallet-icon" src="https://phantom.app/img/phantom-logo.png"
+        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2234%22 height=%2234%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%229%22 fill=%22%234E44CE%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E👻%3C/text%3E%3C/svg%3E'">
+      <div>
+        <div>Phantom</div>
+        <div class="wallet-sub">Найпопулярніший Solana гаманець</div>
+      </div>
+    </button>
+
+    <button class="wallet-btn" onclick="connectWallet('solflare')">
+      <img class="wallet-icon" src="https://solflare.com/assets/logo.svg"
+        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2234%22 height=%2234%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%229%22 fill=%22%23FC7227%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22%3E🔥%3C/text%3E%3C/svg%3E'">
+      <div>
+        <div>Solflare</div>
+        <div class="wallet-sub">Веб та розширення для браузера</div>
+      </div>
+    </button>
+
+    <button class="wallet-btn" onclick="connectWallet('backpack')">
+      <img class="wallet-icon" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='9' fill='%23E33E3F'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='20'%3E🎒%3C/text%3E%3C/svg%3E">
+      <div>
+        <div>Backpack</div>
+        <div class="wallet-sub">xNFT мультичейн гаманець</div>
+      </div>
+    </button>
+
+    <button class="cancel-btn" onclick="closeModal()">Скасувати</button>
+  </div>
+</div>
+
+<script>
+const SUNSHINE_VOTE = '2P9ZYA4vBoBBr56hrEFTmrd5ctuz3r7wtvRYmbgk6jRL';
+const VALIDATORS = {
+  sunshine: { apy: null, mev: 8,    comm: 0, uptime: 99.99 },
+  avg:      { apy: null, mev: 0,    comm: 0, uptime: 99.5  },
+  figment:  { apy: 5.62, mev: 0,    comm: 8, uptime: 99.9  },
+  binance:  { apy: 6.01, mev: 0,    comm: 5, uptime: 99.8  },
+  jupiter:  { apy: 5.99, mev: 0,    comm: 6, uptime: 99.7  },
+  everstake:{ apy: 5.54, mev: 0,    comm: 7, uptime: 99.7  },
+  helius:   { apy: 6.10, mev: null, comm: 0, uptime: 99.9  },
+  forward:  { apy: 6.03, mev: 0,    comm: 5, uptime: 99.6  },
+};
+
+let solPrice = 140, months = 12, currentApy = 6.0;
+let walletConnected = false, walletAddr = '';
+
+async function fetchPrice() {
+  for (const fn of [
+    async () => { const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT'); const d = await r.json(); return parseFloat(d.price); },
+    async () => { const r = await fetch('https://api.kraken.com/0/public/Ticker?pair=SOLUSD'); const d = await r.json(); return parseFloat(Object.values(d.result)[0].c[0]); }
+  ]) { try { const p = await fn(); if (p > 1) return p; } catch(e) {} }
+  return null;
+}
+
+async function fetchClusterApy() {
+  try { const r = await fetch('https://api.stakewiz.com/cluster_stats'); const d = await r.json(); const a = d.avg_apy || d.average_apy || d.apy; if (a) return parseFloat(a); } catch(e) {}
+  try {
+    const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getInflationRate' }) });
+    const d = await r.json();
+    if (d.result) return parseFloat(((d.result.validator || 0.05) * 100 * 0.92).toFixed(2));
+  } catch(e) {}
+  return 5.9;
+}
+
+async function fetchMyValidator() {
+  try { const r = await fetch('https://api.stakewiz.com/validator/' + SUNSHINE_VOTE); if (!r.ok) return null; return await r.json(); } catch(e) { return null; }
+}
+
+async function init() {
+  const [priceRes, clusterApy, myVal] = await Promise.all([fetchPrice(), fetchClusterApy(), fetchMyValidator()]);
+
+  document.getElementById('price-display').innerHTML = '';
+  if (priceRes) {
+    solPrice = priceRes;
+    document.getElementById('price-inp').value = solPrice.toFixed(2);
+    document.getElementById('price-dot').className = 'dot live';
+    document.getElementById('price-display').textContent = '$' + solPrice.toFixed(2);
+    document.getElementById('price-badge').textContent = 'live';
+    document.getElementById('price-badge').style.color = 'var(--green)';
+  } else {
+    document.getElementById('price-dot').className = 'dot';
+    document.getElementById('price-display').textContent = 'офлайн';
+  }
+
+  VALIDATORS.avg.apy = clusterApy;
+  if (myVal) {
+    const baseApy = parseFloat(myVal.apy_estimate || myVal.estimated_apy || myVal.apy || 0);
+    VALIDATORS.sunshine.apy = baseApy || clusterApy;
+    VALIDATORS.sunshine.mev = myVal.jito_commission_bps ? myVal.jito_commission_bps / 100 : 8;
+    VALIDATORS.sunshine.comm = myVal.commission || 0;
+    VALIDATORS.sunshine.uptime = myVal.uptime || 99.99;
+  } else {
+    VALIDATORS.sunshine.apy = clusterApy;
+  }
+  onVal();
+}
+
+function onVal() {
+  const key = document.getElementById('val-sel').value;
+  const v = VALIDATORS[key];
+  const apy = v.apy || 5.9;
+  currentApy = apy + (v.mev > 0 ? (v.mev / 100) * 0.5 : 0);
+  document.getElementById('p-apy').textContent = 'APY: ' + apy.toFixed(2) + '%';
+  document.getElementById('p-mev').textContent = 'MEV: ' + (v.mev !== null && v.mev !== undefined ? v.mev + '%' : 'n/a');
+  document.getElementById('p-comm').textContent = 'Комісія: ' + (v.comm !== null ? v.comm + '%' : 'n/a');
+  document.getElementById('p-up').textContent = 'Uptime: ' + (v.uptime || '—') + '%';
+  recalc();
+}
+
+function onMonths(v) {
+  months = parseInt(v);
+  document.getElementById('mdisp').textContent = months;
+  document.getElementById('period-lbl').textContent = 'За ' + months + ' міс.';
+  recalc();
+}
+
+function adjStake(d) {
+  const inp = document.getElementById('stake');
+  inp.value = Math.max(0, (parseFloat(inp.value) || 0) + d);
+  recalc();
+}
+
+function recalc() {
+  const stake = parseFloat(document.getElementById('stake').value) || 0;
+  const price = parseFloat(document.getElementById('price-inp').value) || 140;
+  const yearly = stake * currentApy / 100;
+  const monthly = yearly / 12, daily = yearly / 365, period = monthly * months;
+  const total = stake + period;
+  const f = n => n.toFixed(4) + ' SOL';
+  const u = n => '≈ $' + (n * price).toFixed(2);
+  document.getElementById('r-d').textContent = f(daily);
+  document.getElementById('u-d').textContent = u(daily);
+  document.getElementById('r-m').textContent = f(monthly);
+  document.getElementById('u-m').textContent = u(monthly);
+  document.getElementById('r-p').textContent = f(period);
+  document.getElementById('u-p').textContent = u(period);
+  document.getElementById('t-sol').textContent = total.toFixed(4) + ' SOL';
+  document.getElementById('t-usd').textContent = u(total);
+}
+
+// ── Wallet ──────────────────────────────────────────
+function onStakeClick() {
+  if (!walletConnected) {
+    document.getElementById('modal').classList.add('show');
+  } else {
+    doStake();
+  }
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+function onOverlayClick(e) { if (e.target.id === 'modal') closeModal(); }
+
+async function connectWallet(name) {
+  closeModal();
+  const st = document.getElementById('stake-status');
+  const btn = document.getElementById('stake-btn');
+
+  let provider = null;
+  if (name === 'phantom')  provider = window.phantom?.solana || window.solana;
+  if (name === 'solflare') provider = window.solflare;
+  if (name === 'backpack') provider = window.backpack;
+
+  const links = { phantom: 'https://phantom.app', solflare: 'https://solflare.com', backpack: 'https://backpack.app' };
+  if (!provider) {
+    st.className = 'status-line err';
+    st.innerHTML = name + ' не знайдено. <a href="' + links[name] + '" target="_blank">Встановити →</a>';
+    return;
+  }
+
+  try {
+    st.className = 'status-line';
+    st.innerHTML = '<span class="spinner"></span> Підключення...';
+    btn.disabled = true;
+    const resp = await provider.connect();
+    walletAddr = resp.publicKey.toString();
+    walletConnected = true;
+    btn.className = 'stake-btn connected';
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="rgba(255,255,255,.25)"/><path d="M9 20.5h11.5l2.5-2H11L9 20.5zm0-7h11.5l2.5-2H11L9 13.5zm2.5-3.5h11.5L20.5 8H11L9 10z" fill="white"/></svg> Застейкати зараз`;
+    btn.disabled = false;
+    st.className = 'status-line ok';
+    st.textContent = '✓ ' + walletAddr.slice(0,4) + '...' + walletAddr.slice(-4) + ' підключено';
+  } catch(e) {
+    btn.disabled = false;
+    st.className = 'status-line err';
+    st.textContent = 'Відхилено користувачем';
+  }
+}
+
+async function doStake() {
+  const st = document.getElementById('stake-status');
+  const btn = document.getElementById('stake-btn');
+  const amt = parseFloat(document.getElementById('stake').value) || 0;
+  if (amt < 0.01) { st.className = 'status-line err'; st.textContent = 'Мінімум 0.01 SOL'; return; }
+
+  let provider = window.phantom?.solana || window.solana || window.solflare || window.backpack;
+  if (!provider) { st.className = 'status-line err'; st.textContent = 'Гаманець не знайдено'; return; }
+
+  try {
+    if (!window.solanaWeb3) {
+      st.className = 'status-line';
+      st.innerHTML = '<span class="spinner"></span> Завантаження Solana SDK...';
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/solanaWeb3.js/1.87.6/index.iife.min.js';
+        s.onload = res; s.onerror = rej; document.head.appendChild(s);
+      });
+    }
+    const { Connection, PublicKey, StakeProgram, Transaction, LAMPORTS_PER_SOL, Authorized, Lockup, SystemProgram, Keypair } = solanaWeb3;
+
+    st.className = 'status-line';
+    st.innerHTML = '<span class="spinner"></span> Підготовка транзакції...';
+    btn.disabled = true;
+
+    const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    const walletPubkey = new PublicKey(walletAddr);
+    const votePubkey = new PublicKey(SUNSHINE_VOTE);
+    const lamports = Math.floor(amt * LAMPORTS_PER_SOL);
+    const stakeKeypair = Keypair.generate();
+    const rentExempt = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+
+    const tx = new Transaction();
+    tx.add(
+      SystemProgram.createAccount({ fromPubkey: walletPubkey, newAccountPubkey: stakeKeypair.publicKey, lamports: lamports + rentExempt, space: StakeProgram.space, programId: StakeProgram.programId }),
+      StakeProgram.initialize({ stakePubkey: stakeKeypair.publicKey, authorized: new Authorized(walletPubkey, walletPubkey), lockup: new Lockup(0, 0, walletPubkey) }),
+      StakeProgram.delegate({ stakePubkey: stakeKeypair.publicKey, authorizedPubkey: walletPubkey, votePubkey })
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = walletPubkey;
+    tx.partialSign(stakeKeypair);
+
+    st.innerHTML = '<span class="spinner"></span> Підтвердіть у гаманці...';
+    const signed = await provider.signTransaction(tx);
+    const sig = await connection.sendRawTransaction(signed.serialize());
+
+    btn.disabled = false;
+    st.className = 'status-line ok';
+    st.innerHTML = '✅ Відправлено! <a href="https://solscan.io/tx/' + sig + '" target="_blank">Solscan →</a>';
+  } catch(e) {
+    btn.disabled = false;
+    st.className = 'status-line err';
+    const msg = e.message || '';
+    st.textContent = msg.includes('rejected') || msg.includes('User rejected') ? 'Відхилено користувачем' : 'Помилка: ' + msg.slice(0, 60);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
