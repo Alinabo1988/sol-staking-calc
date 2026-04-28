@@ -346,10 +346,7 @@
       <h1>Sunshine <span>SOL</span> Staking</h1>
       <div style="font-size:12px;color:var(--text3);margin-top:1px">Калькулятор прибутку · Mainnet</div>
     </div>
-    <div class="price-chip">
-      <span class="dot" id="price-dot"></span>
-      <span id="price-display"><span class="spinner"></span></span>
-    </div>
+
   </header>
 
   <div class="grid">
@@ -358,30 +355,39 @@
     <div class="card" style="display:flex;flex-direction:column">
       <div class="card-title">Параметри стейкінгу</div>
 
+      <!-- Cluster stats + price row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;padding:10px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">TrueAPY кластеру</div>
+          <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text)" id="cluster-apy-disp"><span class="spinner"></span></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Ціна SOL</div>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <span class="dot" id="price-dot" style="flex-shrink:0"></span>
+            <span id="price-display" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text)"><span class="spinner"></span></span>
+          </div>
+        </div>
+      </div>
+
       <div style="margin-bottom:14px">
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Валідатор</div>
         <div class="sel-wrap">
           <select id="val-sel" onchange="onVal()">
-            <option value="sunshine">☀️ Sunshine (моя нода)</option>
-            <option value="avg">📊 Середній по кластеру</option>
-            <option value="figment">Figment</option>
-            <option value="binance">Binance Staking</option>
-            <option value="jupiter">Jupiter</option>
-            <option value="everstake">Everstake</option>
-            <option value="helius">Helius</option>
-            <option value="forward">Forward Industries</option>
+            <option value="sunshine">☀️ Sunshine</option>
+            <option value="__loading" disabled>Завантаження топ валідаторів...</option>
           </select>
           <svg class="sel-arrow" width="12" height="12" viewBox="0 0 12 12"><path fill="currentColor" d="M6 8L1 3h10z"/></svg>
         </div>
         <div class="pills" id="pills">
           <span class="pill purple" id="p-apy">APY: —</span>
-          <span class="pill" id="p-mev">MEV: —</span>
-          <span class="pill" id="p-comm">Комісія: —</span>
+          <span class="pill" id="p-mev">Комісія: —</span>
+          <span class="pill" id="p-comm" style="display:none"></span>
           <span class="pill green" id="p-up">Uptime: —</span>
         </div>
       </div>
 
-      <div>
+      <div style="margin-top:16px">
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Кількість місяців</div>
         <div class="slider-row">
           <input type="range" min="1" max="24" step="1" value="12" id="mslider" oninput="onMonths(this.value)">
@@ -413,8 +419,9 @@
           <button class="adj-btn" onclick="adjStake(-10)">−</button>
           <button class="adj-btn" onclick="adjStake(10)">+</button>
         </div>
-        <div class="price-row">
-          <span class="price-label">Ціна SOL ($):</span>
+        <!-- price moved to left card -->
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text2)">Ціна SOL ($):</span>
           <input class="price-input" type="number" id="price-inp" value="140" min="1" oninput="recalc()">
           <span id="price-badge" style="font-size:10px;color:var(--text3)">офлайн</span>
         </div>
@@ -485,17 +492,10 @@
 </div>
 
 <script>
-const SUNSHINE_VOTE = 'FGtsnE1HB4bBi6g4xAt5mvWtuC3qBPWPBgWVrnRmUiVH';
-const VALIDATORS = {
-  sunshine: { apy: null, mev: 8,    comm: 0, uptime: 99.99 },
-  avg:      { apy: null, mev: 0,    comm: 0, uptime: 99.5  },
-  figment:  { apy: 5.62, mev: 0,    comm: 8, uptime: 99.9  },
-  binance:  { apy: 6.01, mev: 0,    comm: 5, uptime: 99.8  },
-  jupiter:  { apy: 5.99, mev: 0,    comm: 6, uptime: 99.7  },
-  everstake:{ apy: 5.54, mev: 0,    comm: 7, uptime: 99.7  },
-  helius:   { apy: 6.10, mev: null, comm: 0, uptime: 99.9  },
-  forward:  { apy: 6.03, mev: 0,    comm: 5, uptime: 99.6  },
-};
+const SUNSHINE_VOTE = '2P9ZYA4vBoBBr56hrEFTmrd5ctuz3r7wtvRYmbgk6jRL';
+// VALIDATORS populated dynamically from StakeWiz API
+// key = vote pubkey (or "sunshine" / "avg" for special entries)
+const VALIDATORS = {};
 
 let solPrice = 140, months = 12, currentApy = 6.0;
 let walletConnected = false, walletAddr = '';
@@ -515,16 +515,69 @@ async function fetchClusterApy() {
     const d = await r.json();
     if (d.result) return parseFloat(((d.result.validator || 0.05) * 100 * 0.92).toFixed(2));
   } catch(e) {}
-  return 5.9;
+  return null;
 }
 
-async function fetchMyValidator() {
-  try { const r = await fetch('https://api.stakewiz.com/validator/' + SUNSHINE_VOTE); if (!r.ok) return null; return await r.json(); } catch(e) { return null; }
+async function fetchAllValidators() {
+  try {
+    // Fetch all validators sorted by wiz_score; we re-sort by TrueAPY on client
+    const r = await fetch('https://api.stakewiz.com/validators');
+    if (!r.ok) return null;
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : (data.validators || data.results || []);
+    return list;
+  } catch(e) { return null; }
+}
+
+async function fetchMyValidator(list) {
+  // First try to find Sunshine in the already-fetched list
+  if (list) {
+    const found = list.find(v => v.vote_identity === SUNSHINE_VOTE || v.pubkey === SUNSHINE_VOTE || v.vote_pubkey === SUNSHINE_VOTE);
+    if (found) return found;
+  }
+  // Fallback: individual endpoint
+  try {
+    const r = await fetch('https://api.stakewiz.com/validator/' + SUNSHINE_VOTE);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function fetchValidatorUptime30d(voteIdentity) {
+  // Dedicated endpoint = StakeWiz "Uptime (30 days)" — returns 0–1 range per data point
+  try {
+    const r = await fetch('https://api.stakewiz.com/validator_vote_success/' + voteIdentity);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : (data.results || []);
+    const values = list.map(x => parseFloat(x.vote_success)).filter(x => !isNaN(x));
+    if (!values.length) return null;
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    return avg <= 1 ? parseFloat((avg * 100).toFixed(2)) : parseFloat(avg.toFixed(2));
+  } catch(e) { return null; }
+}
+
+function extractValidatorData(v) {
+  // From StakeWiz docs: base APY = apy_estimate, Jito APY = jito_apy (separate field)
+  // vote_success in /validators = current epoch value, NOT 30d average (30d comes from validator_vote_success endpoint)
+  const baseApy = parseFloat(v.apy_estimate ?? v.estimated_apy ?? v.apy ?? 0);
+  const jitoApy = parseFloat(v.jito_apy ?? v.mev_apy ?? 0);
+  // uptime intentionally null for non-Sunshine validators:
+  // vote_success in /validators = current epoch value ≠ 30d uptime
+  // Sunshine gets real 30d uptime via fetchValidatorUptime30d() separately
+  const uptime  = null;
+  const comm    = parseFloat(v.commission ?? 0);
+  const name    = v.name || v.moniker || (v.vote_identity || '').slice(0, 8) + '...';
+  const vote    = v.vote_identity || v.pubkey || v.vote_pubkey || '';
+  return { base_apy: baseApy, jito_apy: jitoApy, uptime, comm, name, vote };
 }
 
 async function init() {
-  const [priceRes, clusterApy, myVal] = await Promise.all([fetchPrice(), fetchClusterApy(), fetchMyValidator()]);
+  const [priceRes, clusterApy, allValidators, sunshineUptime30d] = await Promise.all([
+    fetchPrice(), fetchClusterApy(), fetchAllValidators(), fetchValidatorUptime30d(SUNSHINE_VOTE)
+  ]);
 
+  // ── Price ──
   document.getElementById('price-display').innerHTML = '';
   if (priceRes) {
     solPrice = priceRes;
@@ -535,47 +588,106 @@ async function init() {
     document.getElementById('price-badge').style.color = 'var(--green)';
   } else {
     document.getElementById('price-dot').className = 'dot';
-    document.getElementById('price-display').textContent = 'офлайн';
+    document.getElementById('price-display').textContent = '—';
   }
 
-  VALIDATORS.avg.apy = clusterApy;
-  if (myVal) {
-  console.log('Stakewiz validator data:', myVal);
-
-  const baseApy = parseFloat(
-    myVal.true_apy ||
-    myVal.true_apy_estimate ||
-    myVal.trueapy ||
-    myVal.apy_estimate ||
-    myVal.estimated_apy ||
-    myVal.apy ||
-    0
-  );
-
-  if (!isNaN(baseApy) && baseApy > 0) {
-    VALIDATORS.sunshine.apy = baseApy;
+  // ── Cluster APY ──
+  const clusterEl = document.getElementById('cluster-apy-disp');
+  if (clusterApy) {
+    clusterEl.textContent = clusterApy.toFixed(2) + '%';
   } else {
-    console.log('APY not found, fallback to cluster');
-    VALIDATORS.sunshine.apy = clusterApy;
+    clusterEl.textContent = '—';
   }
 
-  VALIDATORS.sunshine.mev = myVal.jito_commission_bps ? myVal.jito_commission_bps / 100 : 8;
-  VALIDATORS.sunshine.comm = myVal.commission || 0;
-  VALIDATORS.sunshine.uptime = myVal.uptime || 99.99;
-} else {
-  VALIDATORS.sunshine.apy = clusterApy;
-}
+  // ── Sunshine validator ──
+  const myVal = await fetchMyValidator(allValidators);
+  if (myVal) {
+    const d = extractValidatorData(myVal);
+    VALIDATORS['sunshine'] = {
+      base_apy: d.base_apy || clusterApy || 5.96,
+      jito_apy: d.jito_apy,
+      comm:     d.comm,
+      uptime:   sunshineUptime30d, // real 30d average from validator_vote_success endpoint
+    };
+  } else {
+    VALIDATORS['sunshine'] = { base_apy: clusterApy || 5.96, jito_apy: 0.09, comm: 0, uptime: sunshineUptime30d };
+  }
+
+  // ── Populate select: Sunshine first, then top 10 by TrueAPY ──
+  const sel = document.getElementById('val-sel');
+  // remove loading placeholder
+  sel.innerHTML = '<option value="sunshine">☀️ Sunshine</option>';
+
+  if (allValidators && allValidators.length) {
+    // Sort by TrueAPY = apy_estimate + jito_apy, descending
+    const sorted = allValidators
+      .filter(v => {
+        const vote = v.vote_identity || v.pubkey || v.vote_pubkey || '';
+        return vote !== SUNSHINE_VOTE; // exclude Sunshine (already first)
+      })
+      .map(v => {
+        const d = extractValidatorData(v);
+        return { ...d, trueApy: d.base_apy + d.jito_apy };
+      })
+      .filter(v => v.trueApy > 0 && v.base_apy > 0)
+      .sort((a, b) => b.trueApy - a.trueApy)
+      .slice(0, 10);
+
+    sorted.forEach((v, i) => {
+      const key = 'top_' + i;
+      VALIDATORS[key] = v;
+      const opt = document.createElement('option');
+      opt.value = key;
+      const jitoLabel = v.jito_apy > 0 ? ` (S ${v.base_apy.toFixed(2)}%+J ${v.jito_apy.toFixed(2)}%)` : '';
+      opt.textContent = `${v.name} — ${v.trueApy.toFixed(2)}%${jitoLabel}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  sel.value = 'sunshine';
+  onVal();
 }
 
 function onVal() {
   const key = document.getElementById('val-sel').value;
   const v = VALIDATORS[key];
-  const apy = v.apy || 5.9;
-  currentApy = apy;
-  document.getElementById('p-apy').textContent = 'APY: ' + apy.toFixed(2) + '%';
-  document.getElementById('p-mev').textContent = 'MEV: ' + (v.mev !== null && v.mev !== undefined ? v.mev + '%' : 'n/a');
-  document.getElementById('p-comm').textContent = 'Комісія: ' + (v.comm !== null ? v.comm + '%' : 'n/a');
-  document.getElementById('p-up').textContent = 'Uptime: ' + (v.uptime || '—') + '%';
+  if (!v) return;
+  const baseApy = v.base_apy || 0;
+  const jitoApy = v.jito_apy || 0;
+  currentApy = baseApy + jitoApy; // TrueAPY = S + J, like StakeWiz
+
+  // TrueAPY pill
+  const trueLabel = jitoApy > 0
+    ? `TrueAPY: ${currentApy.toFixed(2)}% (S ${baseApy.toFixed(2)}% + J ${jitoApy.toFixed(2)}%)`
+    : `TrueAPY: ${currentApy.toFixed(2)}%`;
+  document.getElementById('p-apy').textContent = trueLabel;
+  document.getElementById('p-mev').textContent = 'Комісія: ' + (v.comm != null ? v.comm + '%' : 'n/a');
+  document.getElementById('p-comm').style.display = 'none';
+
+  // Uptime: show cached value immediately, then fetch 30d if not yet loaded
+  const uptimeEl = document.getElementById('p-up');
+  if (v.uptime && v.uptime > 0) {
+    uptimeEl.textContent = 'Uptime 30d: ' + v.uptime.toFixed(2) + '%';
+    uptimeEl.style.display = 'inline-block';
+  } else if (v.vote) {
+    // Not yet loaded — show spinner, fetch in background
+    uptimeEl.innerHTML = 'Uptime 30d: <span class="spinner"></span>';
+    uptimeEl.style.display = 'inline-block';
+    fetchValidatorUptime30d(v.vote).then(val => {
+      if (val && val > 0) {
+        v.uptime = val; // cache so next switch is instant
+        if (document.getElementById('val-sel').value === key) {
+          uptimeEl.textContent = 'Uptime 30d: ' + val.toFixed(2) + '%';
+        }
+      } else {
+        if (document.getElementById('val-sel').value === key) {
+          uptimeEl.style.display = 'none';
+        }
+      }
+    });
+  } else {
+    uptimeEl.style.display = 'none';
+  }
   recalc();
 }
 
@@ -630,7 +742,7 @@ async function connectWallet(name) {
   let provider = null;
   if (name === 'phantom')  provider = window.phantom?.solana || window.solana;
   if (name === 'solflare') provider = window.solflare;
-  if (name === 'backpack') provider = window.backpack;
+  if (name === 'backpack') provider = window.backpack?.solana || window.backpack || window.xnft?.solana;
 
   const links = { phantom: 'https://phantom.app', solflare: 'https://solflare.com', backpack: 'https://backpack.app' };
   if (!provider) {
