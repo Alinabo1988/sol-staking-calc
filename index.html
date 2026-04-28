@@ -126,7 +126,9 @@
       color: var(--text2);
       background: var(--bg3);
     }
-    .pill.green { border-color: rgba(63,185,80,.3); color: var(--green); background: var(--green-bg); }
+    .pill.green  { border-color: rgba(63,185,80,.3);  color: var(--green);  background: var(--green-bg); }
+    .pill.yellow { border-color: rgba(210,153,34,.35); color: #e3b341;       background: rgba(210,153,34,.1); }
+    .pill.red    { border-color: rgba(248,81,73,.3);   color: #f85149;       background: rgba(248,81,73,.1); }
     .pill.purple { border-color: rgba(153,69,255,.3); color: #b97fff; background: var(--purple-dim); }
 
     /* months slider */
@@ -492,7 +494,8 @@
 </div>
 
 <script>
-const SUNSHINE_VOTE = '2P9ZYA4vBoBBr56hrEFTmrd5ctuz3r7wtvRYmbgk6jRL';
+const SUNSHINE_IDENTITY = '2P9ZYA4vBoBBr56hrEFTmrd5ctuz3r7wtvRYmbgk6jRL';
+const SUNSHINE_VOTE     = 'FGtsnE1HB4bBi6g4xAt5mvWtuC3qBPWPBgWVrnRmUiVH';
 // VALIDATORS populated dynamically from StakeWiz API
 // key = vote pubkey (or "sunshine" / "avg" for special entries)
 const VALIDATORS = {};
@@ -532,12 +535,18 @@ async function fetchAllValidators() {
 async function fetchMyValidator(list) {
   // First try to find Sunshine in the already-fetched list
   if (list) {
-    const found = list.find(v => v.vote_identity === SUNSHINE_VOTE || v.pubkey === SUNSHINE_VOTE || v.vote_pubkey === SUNSHINE_VOTE);
+    const found = list.find(v =>
+      v.vote_identity === SUNSHINE_VOTE ||
+      v.vote_identity === SUNSHINE_IDENTITY ||
+      v.identity      === SUNSHINE_IDENTITY ||
+      v.pubkey        === SUNSHINE_VOTE ||
+      v.vote_pubkey   === SUNSHINE_VOTE
+    );
     if (found) return found;
   }
   // Fallback: individual endpoint
   try {
-    const r = await fetch('https://api.stakewiz.com/validator/' + SUNSHINE_VOTE);
+    const r = await fetch('https://api.stakewiz.com/validator/' + SUNSHINE_VOTE); // vote account, not identity
     if (!r.ok) return null;
     return await r.json();
   } catch(e) { return null; }
@@ -560,7 +569,14 @@ async function fetchValidatorUptime30d(voteIdentity) {
 function extractValidatorData(v) {
   // From StakeWiz docs: base APY = apy_estimate, Jito APY = jito_apy (separate field)
   // vote_success in /validators = current epoch value, NOT 30d average (30d comes from validator_vote_success endpoint)
-  const baseApy = parseFloat(v.apy_estimate ?? v.estimated_apy ?? v.apy ?? 0);
+  const baseApy = parseFloat(
+    v.true_apy ||
+    v.true_apy_estimate ||
+    v.apy_estimate ||
+    v.estimated_apy ||
+    v.apy ||
+    0
+  );
   const jitoApy = parseFloat(v.jito_apy ?? v.mev_apy ?? 0);
   // uptime intentionally null for non-Sunshine validators:
   // vote_success in /validators = current epoch value ≠ 30d uptime
@@ -568,7 +584,7 @@ function extractValidatorData(v) {
   const uptime  = null;
   const comm    = parseFloat(v.commission ?? 0);
   const name    = v.name || v.moniker || (v.vote_identity || '').slice(0, 8) + '...';
-  const vote    = v.vote_identity || v.pubkey || v.vote_pubkey || '';
+  const vote    = v.vote_account || v.vote_pubkey || v.pubkey || v.vote_identity || ''; // IMPORTANT: vote_account must stay first (StakeWiz API)
   return { base_apy: baseApy, jito_apy: jitoApy, uptime, comm, name, vote };
 }
 
@@ -607,10 +623,11 @@ async function init() {
       base_apy: d.base_apy || clusterApy || 5.96,
       jito_apy: d.jito_apy,
       comm:     d.comm,
-      uptime:   sunshineUptime30d, // real 30d average from validator_vote_success endpoint
+      uptime:   sunshineUptime30d,
+      vote:     SUNSHINE_VOTE,
     };
   } else {
-    VALIDATORS['sunshine'] = { base_apy: clusterApy || 5.96, jito_apy: 0.09, comm: 0, uptime: sunshineUptime30d };
+    VALIDATORS['sunshine'] = { base_apy: clusterApy || 5.96, jito_apy: 0.09, comm: 0, uptime: sunshineUptime30d, vote: SUNSHINE_VOTE };
   }
 
   // ── Populate select: Sunshine first, then top 10 by TrueAPY ──
@@ -667,8 +684,10 @@ function onVal() {
   // Uptime: show cached value immediately, then fetch 30d if not yet loaded
   const uptimeEl = document.getElementById('p-up');
   if (v.uptime && v.uptime > 0) {
-    uptimeEl.textContent = 'Uptime 30d: ' + v.uptime.toFixed(2) + '%';
+    const uptimePct = v.uptime;
+    uptimeEl.textContent = 'Uptime 30d: ' + uptimePct.toFixed(2) + '%';
     uptimeEl.style.display = 'inline-block';
+    uptimeEl.className = 'pill ' + (uptimePct >= 98 ? 'green' : uptimePct >= 95 ? 'yellow' : 'red');
   } else if (v.vote) {
     // Not yet loaded — show spinner, fetch in background
     uptimeEl.innerHTML = 'Uptime 30d: <span class="spinner"></span>';
@@ -678,6 +697,7 @@ function onVal() {
         v.uptime = val; // cache so next switch is instant
         if (document.getElementById('val-sel').value === key) {
           uptimeEl.textContent = 'Uptime 30d: ' + val.toFixed(2) + '%';
+          uptimeEl.className = 'pill ' + (val >= 98 ? 'green' : val >= 95 ? 'yellow' : 'red');
         }
       } else {
         if (document.getElementById('val-sel').value === key) {
@@ -688,6 +708,16 @@ function onVal() {
   } else {
     uptimeEl.style.display = 'none';
   }
+  // Update stake button text to match selected validator
+  const btn = document.getElementById('stake-btn');
+  const isConnected = btn.className.includes('connected');
+  if (key === 'sunshine') {
+    btn.innerHTML = btn.innerHTML.replace(/Stake на .+$|Застейкати зараз/, isConnected ? 'Застейкати зараз' : 'Stake на Sunshine');
+  } else {
+    const label = isConnected ? `Застейкати на ${v.name}` : `Stake на ${v.name}`;
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="rgba(255,255,255,.2)"/><path d="M9 20.5h11.5l2.5-2H11L9 20.5zm0-7h11.5l2.5-2H11L9 13.5zm2.5-3.5h11.5L20.5 8H11L9 10z" fill="white"/></svg> ${label}`;
+  }
+
   recalc();
 }
 
